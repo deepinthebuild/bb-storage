@@ -15,9 +15,11 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/alts"
+	"google.golang.org/grpc/experimental"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/mem"
 	"google.golang.org/grpc/status"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -72,6 +74,10 @@ func NewServersFromConfigurationAndServe(configurations []*configuration.ServerC
 		streamInterceptors = append(streamInterceptors, NewAuthenticatingStreamInterceptor(authenticator))
 
 		serverOptions := []grpc.ServerOption{
+			// grpc-go snapshots its server default pool during package
+			// initialization. Honor a later initialization-time override
+			// of the process default, including for receive buffers.
+			experimental.BufferPool(mem.DefaultBufferPool()),
 			grpc.ChainUnaryInterceptor(unaryInterceptors...),
 			grpc.ChainStreamInterceptor(streamInterceptors...),
 			grpc.StatsHandler(otelgrpc.NewServerHandler()),
